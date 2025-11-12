@@ -17,13 +17,25 @@ done
 echo "✅ Usando porta $PORT"
 export PORT
 
-# Atualiza ou cria o .env com a porta atual
-echo "PORT=$PORT" > .env
-echo "DATABASE_URL=postgresql://user:password@db:5432/minha_api?schema=public" >> .env
+# Se DATABASE_URL não estiver definida, usa padrão local
+if [ -z "$DATABASE_URL" ]; then
+  echo "📝 Usando configuração local do banco"
+  echo "PORT=$PORT" > .env
+  echo "DATABASE_URL=postgresql://user:password@db:5432/minha_api?schema=public" >> .env
+  DB_HOST="db"
+  DB_PORT="5432"
+else
+  echo "📝 Usando DATABASE_URL do ambiente"
+  echo "PORT=$PORT" > .env
+  echo "DATABASE_URL=$DATABASE_URL" >> .env
+  # Extrai host e porta da DATABASE_URL para o health check
+  DB_HOST=$(echo $DATABASE_URL | sed -n 's/.*@\([^:]*\):.*/\1/p')
+  DB_PORT=$(echo $DATABASE_URL | sed -n 's/.*:\([0-9]*\)\/.*/\1/p')
+fi
 
 # Espera o PostgreSQL subir
 echo "⏳ Aguardando o banco de dados inicializar..."
-until nc -z db 5432; do
+until nc -z $DB_HOST $DB_PORT; do
   echo "⏳ Ainda aguardando o PostgreSQL..."
   sleep 2
 done
